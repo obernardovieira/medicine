@@ -3,8 +3,13 @@ var fs = require('fs');
 var net = require('net');
 const express = require('express')
 const app = express()
+app.set('view engine', 'pug')
 var Web3 = require('web3');
 web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+
+var bodyParser = require('body-parser');
+app.use(bodyParser.json()); // support json encoded bodies
+app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
 var myAddress = "0xc6ed48Ca34517d7aFc13A66D64695cA62C53e41f";
 console.log(`web3 version: ${web3.version}`)
@@ -31,7 +36,7 @@ function transfer(req, res) {
             "gasLimit": web3.utils.toHex(gasLimit),
             "to": contractAddress,
             "value": "0x0",
-            "data": contract.methods.transfer(destAddress, transferAmount).encodeABI(),
+            "data": contract.methods.transfer(req.body.to, req.body.ammount).encodeABI(),
             "chainId": chainId
         };
         console.log(`Raw of Transaction: \n${JSON.stringify(rawTransaction, null, '\t')}\n------------------------`);
@@ -46,23 +51,24 @@ function transfer(req, res) {
                 else {
                     response = 'Didn\'t worked!';
                 }
-                res.send(response);
+                res.redirect('/');
             })
         });
     });
 }
 
 
-function balance(req, res) {
+app.get('/', (req, res) => {
     contract.methods.balanceOf(myAddress).call().then((receipt) => {
-        res.send(`You have ${receipt} SC in your account!`)
+        res.render('index', { balance: receipt })
     });
-}
-
-
-app.get('/', (req, res) => res.send('Hello World!'))
-app.get('/balance', (req, res) => balance(req, res))
-app.get('/transfer', (req, res) => transfer(req, res))
+})
+app.get('/balance', (req, res) => {
+    contract.methods.balanceOf(myAddress).call().then((receipt) => {
+        res.send(receipt)
+    })
+})
+app.post('/transfer', (req, res) => transfer(req, res))
 
 app.listen(3000, () => console.log('Example app listening on port 3000!'))
 
